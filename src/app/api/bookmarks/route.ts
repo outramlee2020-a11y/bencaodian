@@ -12,7 +12,7 @@ export async function GET(request: NextRequest) {
   const { searchParams } = new URL(request.url)
   const bookId = searchParams.get('bookId')
 
-  const where = { userId: session.user.id } as any
+  const where: Record<string, unknown> = { userId: session.user.id }
   if (bookId) where.bookId = bookId
 
   const bookmarks = await prisma.bookmark.findMany({

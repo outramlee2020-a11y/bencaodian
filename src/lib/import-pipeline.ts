@@ -14,6 +14,11 @@ import { PrismaClient } from '@/generated/prisma/client'
 import { PrismaLibSql } from '@prisma/adapter-libsql'
 import { chromium, Browser, Page } from 'playwright'
 
+interface ApiResponse<T> {
+  errorCode: number
+  data: T
+}
+
 const adapter = new PrismaLibSql({
   url: process.env.DATABASE_URL || 'file:./prisma/dev.db',
 })
@@ -125,7 +130,7 @@ class ShidiangujiImporter {
   /**
    * Execute JavaScript in the page context to call the API and get the result
    */
-  private async callAPI<T>(url: string, options?: { method?: string; body?: any }): Promise<T> {
+  private async callAPI<T>(url: string, options?: { method?: string; body?: unknown }): Promise<T | null> {
     if (!this.page) throw new Error('Browser not initialized')
 
     const result = await this.page.evaluate(async (args) => {
@@ -138,15 +143,15 @@ class ShidiangujiImporter {
         },
         body: args.body ? JSON.stringify(args.body) : undefined,
       })
-      return response.json()
+      return response.json() as Promise<ApiResponse<T>>
     }, { url, method: options?.method || 'GET', body: options?.body })
 
-    if ((result as any).errorCode !== 0) {
+    if (!result || result.errorCode !== 0) {
       console.warn(`⚠️  API error for ${url}:`, result)
-      return null as T
+      return null
     }
 
-    return (result as any).data as T
+    return result.data
   }
 
   /**

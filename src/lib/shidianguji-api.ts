@@ -205,7 +205,8 @@ function getRouteData(routerData: any, routeName: string): any | null {
 function findInRouterData(data: any, ...keys: string[]): any {
   if (!data?.loaderData) return null
 
-  for (const routeData of Object.values(data.loaderData) as any[]) {
+  const allRoutes: any[] = Object.values(data.loaderData)
+  for (const routeData of allRoutes) {
     if (!routeData || typeof routeData !== 'object') continue
     let current: any = routeData
     for (const key of keys) {
@@ -309,7 +310,8 @@ export async function searchShidianguji(query: string): Promise<ShidiangujiSearc
 
     // === Fallback: scan all route data for arrays with bookId ===
     if (results.length === 0 && routerData.loaderData) {
-      for (const routeData of Object.values(routerData.loaderData) as any[]) {
+      const allRoutes: any[] = Object.values(routerData.loaderData)
+      for (const routeData of allRoutes) {
         if (!routeData || typeof routeData !== 'object') continue
         for (const val of Object.values(routeData)) {
           if (Array.isArray(val) && val.length > 0 && val[0]?.bookId) {
@@ -427,7 +429,8 @@ export async function getShidiangujiBook(bookId: string): Promise<ShidiangujiBoo
 
     // Fallback: search all route data for bookInfo
     if (routerData.loaderData) {
-      for (const routeData of Object.values(routerData.loaderData) as any[]) {
+      const allRoutes: any[] = Object.values(routerData.loaderData)
+      for (const routeData of allRoutes) {
         if (routeData?.bookInfo) {
           const bi = routeData.bookInfo
           const authors = bi.authors || []
@@ -541,7 +544,7 @@ export function toInternalBook(sdgBook: ShidiangujiBook) {
     author: sdgBook.author,
     authorDynasty: sdgBook.authorDynasty,
     description: sdgBook.description || '',
-    category: mapCategory((sdgBook as any).category),
+    category: mapCategory('category' in sdgBook ? (sdgBook as ShidiangujiBook & { category?: string }).category : undefined),
     edition: sdgBook.edition || '',
     coverUrl: sdgBook.coverUrl,
     dynasty: sdgBook.dynasty || sdgBook.authorDynasty,
