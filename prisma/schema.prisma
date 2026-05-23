@@ -1,0 +1,208 @@
+// Prisma schema for 本草典 - 中医古籍数字化平台
+// NextAuth v5 + Custom models for bookmarks, reading history, notes
+
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "sqlite"
+}
+
+// ===== NextAuth v5 Models (required by @auth/prisma-adapter) =====
+
+model User {
+  id            String    @id @default(cuid())
+  name          String?
+  email         String    @unique
+  emailVerified DateTime?
+  image         String?
+  passwordHash  String?
+
+  accounts  Account[]
+  sessions  Session[]
+  bookmarks Bookmark[]
+  histories ReadingHistory[]
+  notes     Note[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model Account {
+  id                String  @id @default(cuid())
+  userId            String
+  type              String
+  provider          String
+  providerAccountId String
+  refresh_token     String?
+  access_token      String?
+  expires_at        Int?
+  token_type        String?
+  scope             String?
+  id_token          String?
+  session_state     String?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
+}
+
+model Session {
+  id           String   @id @default(cuid())
+  sessionToken String   @unique
+  userId       String
+  expires      DateTime
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model VerificationToken {
+  identifier String
+  token      String   @unique
+  expires    DateTime
+
+  @@unique([identifier, token])
+}
+
+// ===== 书籍数据模型（从识典古籍导入） =====
+
+model Category {
+  id        String   @id
+  name      String
+  nameEn    String?
+  parentId  String?
+  parent    Category?  @relation("CategoryTree", fields: [parentId], references: [id])
+  children  Category[] @relation("CategoryTree")
+
+  books     Book[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model Book {
+  id              String   @id
+  title           String   // 书名
+  titleCn         String?  // 繁体中文名
+  addNames        String?  // 别名（JSON array）
+  version         Int      @default(0)
+  author          String?  // 作者名
+  authorDynasty   String?  // 作者朝代
+  responsibleType String?  // 责任方式：撰、注、校等
+  dynasty         String?  // 朝代分类名
+  description     String?  // 摘要/简介
+  edition         String?  // 版本信息
+  editionDynasty  String?  // 版本朝代
+  coverUrl        String?
+  beautifulCover  String?  // 精美封面
+  categoryId      String?
+  category        Category? @relation(fields: [categoryId], references: [id])
+  totalChapters   Int      @default(0)
+  quality         String   @default("rough") // rough | polished
+  checkType       Int      @default(1)
+  dataSource      String   @default("shidianguji") // shidianguji | manual
+  teamName        String?  // 整理团队名
+  teamId          String?  // 整理团队ID
+  contributors    String?  // 整理者列表（JSON array: [{userId, userName, avatar}]）
+
+  chapters Chapter[]
+  bookmarks Bookmark[]
+  histories ReadingHistory[]
+  notes    Note[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model Chapter {
+  id              String   @id
+  bookId          String
+  book            Book     @relation(fields: [bookId], references: [id], onDelete: Cascade)
+  title           String
+  chapterLevel    Int      @default(1) // 1=卷, 2=篇, 3=章
+  chapterType     Int      @default(1)
+  parentId        String?
+  orderNum        Int      @default(0) // 排序
+  startPageNum    Int?
+  paragraphCount  Int?
+  volumeId        String?
+  volumeVersion   Int?
+  hasMainContent  Boolean  @default(false)
+
+  content PageContent?
+  bookmarks Bookmark[]
+  histories ReadingHistory[]
+  notes    Note[]
+
+  @@index([bookId])
+  @@index([parentId])
+}
+
+model PageContent {
+  id        String   @id @default(cuid())
+  chapterId String   @unique
+  chapter   Chapter  @relation(fields: [chapterId], references: [id], onDelete: Cascade)
+  content   String   // 全文文本
+  imageUrls String?  // 页面图片URL（JSON array）
+  wordCount Int      @default(0)
+  dataVersion Int    @default(0)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+// ===== 用户数据模型 =====
+
+model Bookmark {
+  id        String   @id @default(cuid())
+  userId    String
+  bookId    String
+  chapterId String?
+  pageNumber Int?
+  text      String?
+  note      String?
+  createdAt DateTime @default(now())
+
+  user    User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  book    Book     @relation(fields: [bookId], references: [id], onDelete: Cascade)
+  chapter Chapter? @relation(fields: [chapterId], references: [id])
+
+  @@index([userId])
+  @@index([userId, bookId])
+}
+
+model ReadingHistory {
+  id         String   @id @default(cuid())
+  userId     String
+  bookId     String
+  chapterId  String?
+  pageNumber Int?
+  progress   Float    @default(0)
+  lastReadAt DateTime @default(now())
+
+  user    User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  book    Book     @relation(fields: [bookId], references: [id], onDelete: Cascade)
+  chapter Chapter? @relation(fields: [chapterId], references: [id])
+
+  @@index([userId])
+  @@index([userId, bookId])
+}
+
+model Note {
+  id        String   @id @default(cuid())
+  userId    String
+  bookId    String
+  chapterId String?
+  text      String
+  pageNumber Int?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user    User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  book    Book     @relation(fields: [bookId], references: [id], onDelete: Cascade)
+  chapter Chapter? @relation(fields: [chapterId], references: [id])
+
+  @@index([userId])
+  @@index([userId, bookId])
+}
