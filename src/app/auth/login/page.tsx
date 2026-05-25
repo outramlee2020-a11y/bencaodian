@@ -1,15 +1,26 @@
 'use client'
 
-import { useState } from 'react'
-import { useRouter } from 'next/navigation'
+import { useState, Suspense } from 'react'
+import { useRouter, useSearchParams } from 'next/navigation'
 import Link from 'next/link'
-import { signIn } from 'next-auth/react'
+import { signIn, useSession } from 'next-auth/react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { BookOpen } from 'lucide-react'
 
 export default function LoginPage() {
+  return (
+    <Suspense fallback={<div className="flex min-h-screen items-center justify-center">加载中...</div>}>
+      <LoginForm />
+    </Suspense>
+  )
+}
+
+function LoginForm() {
   const router = useRouter()
+  const searchParams = useSearchParams()
+  const callbackUrl = searchParams.get('callbackUrl') || '/'
+  const { update } = useSession()
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [error, setError] = useState('')
@@ -28,9 +39,11 @@ export default function LoginPage() {
       })
 
       if (result?.error) {
-        setError('邮箱或密码错误')
+        setError(`登录失败: ${result.error}`)
       } else {
-        router.push('/')
+        // Force session refresh so useSession() picks up the new JWT immediately
+        await update()
+        router.push(callbackUrl)
         router.refresh()
       }
     } catch {

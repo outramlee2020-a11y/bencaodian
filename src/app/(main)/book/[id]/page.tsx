@@ -1,10 +1,11 @@
 import { notFound } from 'next/navigation'
 import Link from 'next/link'
 import Image from 'next/image'
-import { getBookById, getChapters } from '@/lib/db-service'
+import { auth } from '@/lib/auth'
+import { getBookById, getChapters, getUserBookHistory } from '@/lib/db-service'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
-import { BookOpen, Clock, Layers, User, Users, ChevronRight, ChevronDown } from 'lucide-react'
+import { BookOpen, Clock, Layers, User, Users, ChevronRight, ChevronDown, ArrowRight } from 'lucide-react'
 
 interface BookPageProps {
   params: Promise<{ id: string }>
@@ -72,6 +73,9 @@ function ChapterList({
 
 export default async function BookDetailPage({ params }: BookPageProps) {
   const { id } = await params
+  const session = await auth()
+  const userId = session?.user?.id
+
   const [book, chapters] = await Promise.all([
     getBookById(id),
     getChapters(id),
@@ -84,9 +88,17 @@ export default async function BookDetailPage({ params }: BookPageProps) {
   // Find first chapter for "start reading" link
   const firstChapter = chapters[0] || null
 
+  // Fetch reading history for logged-in user
+  const history = userId ? await getUserBookHistory(userId, id) : null
+
   // Count chapters by level for stats
   const level1Count = chapters.filter((c: any) => c.level === 1).length
   const totalChapters = chapters.length
+
+  // Determine "resume reading" chapter
+  const resumeChapter = history?.chapterId
+    ? chapters.find((c: any) => c.id === history.chapterId) || firstChapter
+    : firstChapter
 
   return (
     <div className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
@@ -134,15 +146,48 @@ export default async function BookDetailPage({ params }: BookPageProps) {
 
             {/* Actions */}
             <div className="mt-6 space-y-3">
-              {firstChapter && (
-                <Link href={`/book/${book.id}/chapter/${firstChapter.id}`}>
+              {resumeChapter && (
+                <Link href={`/book/${book.id}/chapter/${resumeChapter.id}`}>
                   <Button variant="primary" size="lg" className="w-full">
                     <BookOpen className="mr-2 h-4 w-4" />
-                    开始阅读
+                    {history ? '继续阅读' : '开始阅读'}
                   </Button>
                 </Link>
               )}
             </div>
+
+            {/* Reading progress (logged-in users only) */}
+            {history && (
+              <div className="mt-4 rounded-xl border border-amber-200 bg-amber-50/60 p-4">
+                <div className="flex items-center justify-between mb-2">
+                  <span className="text-xs font-medium text-amber-800">阅读进度</span>
+                  <span className="text-xs text-amber-600">{Math.round(history.progress)}%</span>
+                </div>
+                <div className="h-2 rounded-full bg-amber-200/60 overflow-hidden">
+                  <div
+                    className="h-full rounded-full bg-amber-600 transition-all"
+                    style={{ width: `${Math.min(100, Math.round(history.progress))}%` }}
+                  />
+                </div>
+                {history.chapter && (
+                  <p className="mt-2 text-xs text-amber-700 truncate">
+                    上次读到：{history.chapter.title}
+                  </p>
+                )}
+                <p className="mt-0.5 text-[10px] text-amber-500 flex items-center gap-1">
+                  <Clock className="h-3 w-3" />
+                  {new Date(history.lastReadAt).toLocaleDateString('zh-CN', {
+                    month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit',
+                  })}
+                </p>
+                <Link
+                  href={`/book/${book.id}/chapter/${history.chapterId}`}
+                  className="mt-2 flex items-center gap-1 text-xs font-medium text-amber-700 hover:text-amber-900 transition-colors"
+                >
+                  继续上次阅读 <ArrowRight className="h-3 w-3" />
+                </Link>
+              </div>
+            )}
 
             {/* Metadata */}
             <div className="mt-6 space-y-3 rounded-xl border border-gray-200 bg-white p-4">
@@ -167,13 +212,27 @@ export default async function BookDetailPage({ params }: BookPageProps) {
                   {totalChapters} 章节
                 </span>
               </div>
-              <div className="flex items-center gap-2">
+              <div className="flex flex-wrap items-center gap-2">
                 <Badge variant="primary">{book.category.name}</Badge>
                 {book.subcategory && <Badge>{book.subcategory}</Badge>}
                 <Badge variant={book.quality === 'polished' ? 'success' : 'warning'}>
                   {book.quality === 'polished' ? '精校' : '粗校'}
                 </Badge>
+                {book.reviewedAt ? (
+                  <Badge variant="success" className="border-green-400 bg-green-50 text-green-700">
+                    已审
+                  </Badge>
+                ) : (
+                  <Badge variant="default" className="bg-gray-50 text-gray-400 ring-1 ring-inset ring-gray-300">
+                    待审
+                  </Badge>
+                )}
               </div>
+              {book.reviewedAt && (
+                <p className="mt-1 text-[10px] text-gray-400">
+                  审定时间：{new Date(book.reviewedAt).toLocaleDateString('zh-CN')}
+                </p>
+              )}
             </div>
           </div>
         </div>

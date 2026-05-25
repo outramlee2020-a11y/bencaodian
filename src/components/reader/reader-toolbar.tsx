@@ -12,6 +12,7 @@ import {
   Globe,
   StickyNote,
   Loader2,
+  Sparkles,
 } from 'lucide-react'
 
 interface ReaderToolbarProps {
@@ -33,6 +34,8 @@ interface ReaderToolbarProps {
   useRealData: boolean
   onToggleRealData: () => void
   realDataLoading: boolean
+  showAiPanel: boolean
+  onToggleAiPanel: () => void
 }
 
 export function ReaderToolbar({
@@ -53,6 +56,8 @@ export function ReaderToolbar({
   useRealData,
   onToggleRealData,
   realDataLoading,
+  showAiPanel,
+  onToggleAiPanel,
 }: ReaderToolbarProps) {
   return (
     <div className="flex items-center justify-between border-b border-gray-200 bg-white px-4 py-2">
@@ -125,6 +130,17 @@ export function ReaderToolbar({
           title="笔记"
         >
           <StickyNote className="h-4 w-4" />
+        </button>
+
+        {/* AI Assistant Button */}
+        <button
+          onClick={onToggleAiPanel}
+          className={`rounded-lg p-2 transition-colors ${
+            showAiPanel ? 'bg-amber-100 text-amber-800' : 'text-gray-500 hover:bg-gray-100'
+          }`}
+          title="AI助手"
+        >
+          <Sparkles className="h-4 w-4" />
         </button>
 
         {/* Fetch from Shidianguji */}

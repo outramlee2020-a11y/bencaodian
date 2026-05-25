@@ -1,5 +1,6 @@
 import { Suspense } from 'react'
 import { SearchPageClient } from '@/components/search/search-page-client'
+import { searchAll } from '@/lib/fulltext-search'
 import { searchBooks } from '@/lib/db-service'
 
 interface SearchPageProps {
@@ -17,21 +18,31 @@ async function SearchPageInner({ searchParams }: SearchPageProps) {
   const category = params.category || 'all'
   const sort = params.sort || 'relevance'
 
-  let results: any[] = []
-  let total = 0
+  let books: any[] = []
+  let chapters: any[] = []
+  let bookTotal = 0
+  let chapterTotal = 0
 
   if (query) {
-    const filtered = await searchBooks(query, category)
-    results = filtered
-    total = filtered.length
+    // Search both books (metadata) and chapters (content)
+    const [filteredBooks, contentResult] = await Promise.all([
+      searchBooks(query, category),
+      searchAll(query, 20, 0),
+    ])
+    books = filteredBooks
+    bookTotal = filteredBooks.length
+    chapters = contentResult.chapters
+    chapterTotal = contentResult.chapterTotal
   }
 
   return (
     <SearchPageClient
       initialQuery={query}
       initialCategory={category}
-      initialResults={results}
-      initialTotal={total}
+      initialBooks={books}
+      initialBookTotal={bookTotal}
+      initialChapters={chapters}
+      initialChapterTotal={chapterTotal}
     />
   )
 }

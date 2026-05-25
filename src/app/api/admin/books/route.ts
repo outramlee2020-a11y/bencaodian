@@ -1,18 +1,34 @@
-/**
- * Admin API: list all books from the database
- */
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
+import { guardAdminApi } from '@/lib/admin-auth'
+import type { Prisma } from '@/generated/prisma/client'
 
 export async function GET(request: NextRequest) {
+  const unauthorized = await guardAdminApi()
+  if (unauthorized) return unauthorized
+
   const { searchParams } = new URL(request.url)
-  const dataSource = searchParams.get('source')
+  const source = searchParams.get('source')
+  const search = searchParams.get('search')
+  const quality = searchParams.get('quality')
+  const filter = searchParams.get('filter')
   const limit = Math.min(Number(searchParams.get('limit') || '200'), 500)
   const offset = Number(searchParams.get('offset') || '0')
 
   try {
-    const where = dataSource ? { dataSource } : {}
-    
+    const where: Prisma.BookWhereInput = {}
+    if (source) where.dataSource = source
+    if (quality) where.quality = quality
+    if (filter === 'no-content') {
+      where.chapters = { none: { content: { isNot: null } } }
+    }
+    if (search) {
+      where.OR = [
+        { title: { contains: search } },
+        { author: { contains: search } },
+      ]
+    }
+
     const [books, total] = await Promise.all([
       prisma.book.findMany({
         where,
@@ -21,6 +37,7 @@ export async function GET(request: NextRequest) {
         skip: offset,
         include: {
           _count: { select: { chapters: true } },
+          category: { select: { id: true, name: true } },
         },
       }),
       prisma.book.count({ where }),
@@ -45,10 +62,17 @@ export async function GET(request: NextRequest) {
           dynasty: b.dynasty,
           edition: b.edition,
           categoryId: b.categoryId,
+          category: b.category,
+          quality: b.quality,
           dataSource: b.dataSource,
           totalChapters: b.totalChapters,
           chapterCount: b._count.chapters,
+          coverUrl: b.coverUrl,
+          beautifulCover: b.beautifulCover,
+          reviewedAt: b.reviewedAt?.toISOString?.() || null,
+          reviewedBy: b.reviewedBy || null,
           createdAt: b.createdAt,
+          updatedAt: b.updatedAt,
         })),
         stats: {
           books: bookCount,

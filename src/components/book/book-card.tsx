@@ -73,13 +73,22 @@ export function BookCard({ book, variant = 'default' }: BookCardProps) {
           </div>
         )}
 
-        {/* Quality badge */}
-        <div className="absolute right-2 top-2">
+        {/* Quality & review badges */}
+        <div className="absolute right-2 top-2 flex flex-col gap-1">
           <Badge
             variant={book.quality === 'polished' ? 'success' : 'warning'}
           >
             {book.quality === 'polished' ? '精校' : '粗校'}
           </Badge>
+          {book.reviewedAt ? (
+            <Badge variant="success" className="border-green-400 bg-green-50 text-green-700">
+              已审
+            </Badge>
+          ) : (
+            <Badge variant="default" className="bg-white/80 text-gray-400 ring-1 ring-inset ring-gray-300">
+              待审
+            </Badge>
+          )}
         </div>
       </div>
 

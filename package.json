@@ -14,6 +14,7 @@
     "@prisma/adapter-libsql": "^7.8.0",
     "@prisma/client": "^7.8.0",
     "bcryptjs": "^3.0.3",
+    "chinese-s2t": "^1.0.0",
     "clsx": "^2.1.1",
     "docx": "^9.6.1",
     "dotenv": "^17.4.2",

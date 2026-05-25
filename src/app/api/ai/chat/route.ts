@@ -4,7 +4,7 @@ const AI_API_URL = process.env.AI_API_URL || 'https://api.openai.com/v1/chat/com
 const AI_API_KEY = process.env.AI_API_KEY || ''
 const AI_MODEL = process.env.AI_MODEL || 'gpt-4o-mini'
 
-const SYSTEM_PROMPT = `你是本草典AI助手，专门回答关于中医古籍、本草学、中医药理论的问题。
+const BASE_SYSTEM_PROMPT = `你是本草典AI助手，专门回答关于中医古籍、本草学、中医药理论的问题。
 你精通《黄帝内经》《伤寒论》《金匮要略》《本草纲目》《神农本草经》等中医经典。
 请用中文回答，保持专业准确，适当引经据典。
 如果用户问的是与现代医学相关的问题，请同时从中医和现代医学角度回答。
@@ -17,7 +17,13 @@ interface ChatMessage {
 
 export async function POST(request: NextRequest) {
   try {
-    const { messages, stream = false } = await request.json()
+    const { messages, stream = false, bookId, chapterId, chapterContent, chapterTitle } = await request.json()
+
+    // Inject chapter context into system prompt
+    let systemPrompt = BASE_SYSTEM_PROMPT
+    if (chapterContent) {
+      systemPrompt += `\n\n## 当前阅读内容\n用户正在阅读《${chapterTitle || '未知章节'}》，以下是该章节的文本内容（用于回答用户问题时引用和参考）：\n\n${chapterContent}\n\n请优先基于上述文本内容回答用户的问题。回答时可以引用原文。`
+    }
 
     if (!messages || !Array.isArray(messages) || messages.length === 0) {
       return NextResponse.json(
@@ -64,7 +70,7 @@ export async function POST(request: NextRequest) {
 
     // Real API call
     const apiMessages: ChatMessage[] = [
-      { role: 'system', content: SYSTEM_PROMPT },
+      { role: 'system', content: systemPrompt },
       ...messages.map((m: any) => ({ role: m.role, content: m.content })),
     ]
 

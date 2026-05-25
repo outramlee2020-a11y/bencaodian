@@ -33,6 +33,7 @@ function mapBook(record: any): Book | null {
     dynasty: record.dynasty || '',
     totalChapters: record.totalChapters || 0,
     quality: (record.quality as 'rough' | 'polished') || 'rough',
+    reviewedAt: record.reviewedAt?.toISOString?.() || undefined,
     createdAt: record.createdAt?.toISOString?.() || new Date().toISOString(),
     teamName: record.teamName || undefined,
     contributors: record.contributors || undefined,
@@ -149,4 +150,36 @@ export async function getChapterContent(chapterId: string) {
     where: { chapterId },
   })
   return content
+}
+
+/** Get recent reading history for a user, with book info */
+export async function getUserRecentHistory(userId: string, limit = 6) {
+  const all = await prisma.readingHistory.findMany({
+    where: { userId },
+    orderBy: { lastReadAt: 'desc' },
+    include: {
+      book: true,
+      chapter: true,
+    },
+  })
+  // Deduplicate by bookId (keep latest per book)
+  const seen = new Set<string>()
+  const deduped: typeof all = []
+  for (const h of all) {
+    if (!seen.has(h.bookId)) {
+      seen.add(h.bookId)
+      deduped.push(h)
+    }
+  }
+  return deduped.slice(0, limit)
+}
+
+/** Get reading history for a specific user + book */
+export async function getUserBookHistory(userId: string, bookId: string) {
+  const history = await prisma.readingHistory.findFirst({
+    where: { userId, bookId },
+    orderBy: { lastReadAt: 'desc' },
+    include: { chapter: true },
+  })
+  return history
 }

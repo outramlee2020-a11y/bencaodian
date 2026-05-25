@@ -14,6 +14,7 @@ export interface Book {
   dynasty: string        // e.g. "明代", "宋代"
   totalChapters: number
   quality: 'rough' | 'polished'  // 粗校/精校
+  reviewedAt?: string            // 审定时间
   createdAt: string
   teamName?: string              // 整理团队
   contributors?: string          // 整理者列表（JSON string）

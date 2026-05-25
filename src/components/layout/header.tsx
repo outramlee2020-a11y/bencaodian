@@ -1,7 +1,7 @@
 'use client'
 
 import Link from 'next/link'
-import { usePathname } from 'next/navigation'
+import { usePathname, useRouter } from 'next/navigation'
 import { useState, useRef, useEffect } from 'react'
 import { useSession, signOut } from 'next-auth/react'
 import { cn } from '@/lib/cn'
@@ -16,10 +16,30 @@ const navLinks = [
 
 export function Header() {
   const pathname = usePathname()
+  const router = useRouter()
   const { data: session, status } = useSession()
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
   const [userMenuOpen, setUserMenuOpen] = useState(false)
+  const [searchOpen, setSearchOpen] = useState(false)
+  const [searchQuery, setSearchQuery] = useState('')
+  const searchRef = useRef<HTMLInputElement>(null)
   const userMenuRef = useRef<HTMLDivElement>(null)
+
+  // Focus search input when opened
+  useEffect(() => {
+    if (searchOpen && searchRef.current) {
+      searchRef.current.focus()
+    }
+  }, [searchOpen])
+
+  const handleSearchSubmit = (e: React.FormEvent) => {
+    e.preventDefault()
+    if (searchQuery.trim()) {
+      router.push(`/search?q=${encodeURIComponent(searchQuery.trim())}`)
+      setSearchOpen(false)
+      setSearchQuery('')
+    }
+  }
 
   // Close user menu on click outside
   useEffect(() => {
@@ -66,6 +86,39 @@ export function Header() {
               </Link>
             )
           })}
+
+          {/* Inline Search */}
+          <div className="relative">
+            {searchOpen ? (
+              <form onSubmit={handleSearchSubmit} className="flex items-center">
+                <input
+                  ref={searchRef}
+                  type="text"
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  placeholder="搜索古籍全文..."
+                  className="h-8 w-56 rounded-lg border border-gray-300 bg-gray-50 px-3 text-sm focus:border-amber-500 focus:outline-none focus:ring-1 focus:ring-amber-200"
+                  onBlur={() => { if (!searchQuery) setSearchOpen(false) }}
+                />
+                <button
+                  type="button"
+                  onClick={() => { setSearchOpen(false); setSearchQuery('') }}
+                  className="-ml-7 p-1 text-gray-400 hover:text-gray-600"
+                >
+                  <X className="h-3.5 w-3.5" />
+                </button>
+              </form>
+            ) : (
+              <button
+                onClick={() => setSearchOpen(true)}
+                className="flex items-center gap-1.5 rounded-lg border border-gray-200 bg-gray-50 px-3 py-1.5 text-sm text-gray-400 hover:text-gray-600 hover:border-gray-300 transition-colors"
+                title="搜索全文"
+              >
+                <Search className="h-3.5 w-3.5" />
+                <span className="text-xs">搜索</span>
+              </button>
+            )}
+          </div>
         </nav>
 
         {/* Auth */}

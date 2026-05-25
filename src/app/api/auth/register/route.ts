@@ -42,13 +42,15 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // Create user
+    // Create user (first registered user becomes admin automatically)
+    const userCount = await prisma.user.count()
     const passwordHash = await hash(password, 12)
     const user = await prisma.user.create({
       data: {
         name: name || email.split('@')[0],
         email,
         passwordHash,
+        role: userCount === 0 ? 'admin' : undefined,
       },
     })
 
